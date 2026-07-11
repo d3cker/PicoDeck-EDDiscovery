@@ -1,0 +1,20 @@
+# Portable build environment downloaded by setup-toolchain.cmd
+.toolchain/
+.downloads/
+
+# CMake/Ninja build trees and packaged firmware
+build/
+build-*/
+dist/
+*.elf
+*.bin
+*.hex
+*.uf2
+
+# Local editor configuration
+.vscode/
+.idea/
+
+# Common operating-system metadata
+.DS_Store
+Thumbs.db
