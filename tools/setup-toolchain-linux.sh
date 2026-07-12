@@ -64,19 +64,36 @@ fi
 
 tinyusb_root="$sdk_root/lib/tinyusb"
 if [[ ! -f "$tinyusb_root/src/tusb.c" ]]; then
+    tinyusb_source="$sdk_root/lib/tinyusb-86ad6e56c1700e85f1c5678607a762cfe3aa2f47"
+    rm -rf -- "$tinyusb_root" "$tinyusb_source"
     unzip -q "$downloads/tinyusb-86ad6e56.zip" -d "$sdk_root/lib"
     mv \
-        "$sdk_root/lib/tinyusb-86ad6e56c1700e85f1c5678607a762cfe3aa2f47" \
+        "$tinyusb_source" \
         "$tinyusb_root"
 fi
 
 lwip_root="$sdk_root/lib/lwip"
 if [[ ! -f "$lwip_root/src/include/lwip/init.h" ]]; then
+    lwip_source="$sdk_root/lib/lwip-77dcd25a72509eb83f72b033d219b1d40cd8eb95"
+    rm -rf -- "$lwip_root" "$lwip_source"
     unzip -q "$downloads/lwip-77dcd25a.zip" -d "$sdk_root/lib"
     mv \
-        "$sdk_root/lib/lwip-77dcd25a72509eb83f72b033d219b1d40cd8eb95" \
+        "$lwip_source" \
         "$lwip_root"
 fi
+
+required_paths=(
+    "$gcc_root/bin/arm-none-eabi-gcc"
+    "$sdk_root/pico_sdk_init.cmake"
+    "$tinyusb_root/src/tusb.c"
+    "$lwip_root/src/include/lwip/init.h"
+)
+for path in "${required_paths[@]}"; do
+    if [[ ! -e "$path" ]]; then
+        echo "Toolchain setup did not produce required path: $path" >&2
+        exit 1
+    fi
+done
 
 echo
 echo "Linux RP2040 toolchain ready in $toolchain_root"
