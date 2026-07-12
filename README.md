@@ -33,6 +33,10 @@ Each application subdirectory is a separate CMake firmware target with its own
 README, application source, build script, and UF2 output. Both targets compile
 the transport components from `common/`.
 
+**Both firmware builds work with either supported Waveshare LCD model. You can
+use the same LCD model for both devices; two different display models are not
+required.**
+
 ## Shared firmware components
 
 The `common/` directory contains the code that must behave consistently in both
@@ -145,8 +149,9 @@ separately. The Display exposes only its network function.
 
 ## First-time installation
 
-Build the firmware as described below or obtain the two UF2 files from a
-release. Flash the correct UF2 to each Pico:
+Download the ready-to-flash UF2 files from [GitHub Releases](https://github.com/d3cker/PicoDeck-EDDiscovery/releases),
+or build them yourself using the Windows or Linux instructions below. Flash the
+correct UF2 to each Pico:
 
 1. Disconnect the Pico's native USB cable.
 2. Hold the Pico's **BOOTSEL** button.
@@ -246,59 +251,6 @@ The repository contains a manual GitHub Actions workflow named **Build and
 release UF2**. It builds both applications on a standard `ubuntu-24.04` GitHub
 hosted runner and publishes a GitHub Release only after the complete build and
 validation succeeds.
-
-The workflow is manual by design. Ordinary pushes and pull requests do not
-consume runner time and cannot accidentally publish firmware. A release is an
-explicit maintainer decision with two inputs:
-
-- `tag`: a new [SemVer](https://semver.org/) tag such as `v0.1.0` or
-  `v0.2.0-beta.1`
-- `prerelease`: marks the GitHub Release as a prerelease; a tag containing a
-  suffix such as `-beta.1` is treated as a prerelease automatically
-
-### Publish a release
-
-The workflow file must first exist on the repository's default branch. Then:
-
-1. Open the repository on GitHub and select **Actions**.
-2. Select **Build and release UF2** in the workflow list.
-3. Select **Run workflow**.
-4. Choose the branch whose exact commit should be released. Use the stable
-   default branch for a normal release. Choose `devel` only when deliberately
-   publishing a test/prerelease build.
-5. Enter a previously unused tag, for example `v0.1.0`.
-6. Enable **Mark this as a prerelease** when appropriate.
-7. Select the green **Run workflow** button and wait for the job to finish.
-
-The tag is created at the selected branch's checked-out commit only after both
-firmware builds succeed. The workflow rejects malformed or existing tags and
-will not replace an existing release. It uses the repository's temporary
-`GITHUB_TOKEN`; no personal access token or custom repository secret is
-required. Repository policy must allow GitHub Actions to write repository
-contents so it can create the tag and release.
-
-Each release contains:
-
-```text
-PicoDeck-ED-Display.uf2
-PicoDeck-ED-Keyboard.uf2
-SHA256SUMS.txt
-LICENSE
-THIRD_PARTY_NOTICES.md
-ICON_UPSTREAM_LICENSE.md
-```
-
-The release page includes installation and hardware requirements, USB subnet
-details, checksums, and automatically generated change notes. The same complete
-`dist/` directory is retained as a workflow artifact for 14 days, even before
-the release publishing step is inspected.
-
-Standard GitHub-hosted runners are free and unlimited for public repositories.
-Private repositories consume the monthly Actions allowance included with the
-account and may incur charges after that allowance, depending on the account's
-spending configuration. See [GitHub Actions
-billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
-for the current terms.
 
 ### Reproduce the Linux build locally
 

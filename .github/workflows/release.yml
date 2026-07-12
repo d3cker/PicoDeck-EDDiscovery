@@ -87,12 +87,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
           REQUESTED_PRERELEASE: ${{ inputs.prerelease }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           checksums="$(cat dist/SHA256SUMS.txt)"
           release_intro="$(cat <<EOF
           PicoDeck-EDDiscovery provides two Raspberry Pi Pico firmware images for Elite Dangerous.
 
-          Built from commit `$GITHUB_SHA`.
+          Built from commit [${SOURCE_SHA}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${SOURCE_SHA}).
 
           ## Firmware included
 
@@ -133,7 +134,7 @@ jobs:
             dist/LICENSE
             dist/THIRD_PARTY_NOTICES.md
             dist/ICON_UPSTREAM_LICENSE.md
-            --target "$GITHUB_SHA"
+            --target "$SOURCE_SHA"
             --title "PicoDeck-EDDiscovery $TAG"
             --generate-notes
             --notes "$release_intro"
