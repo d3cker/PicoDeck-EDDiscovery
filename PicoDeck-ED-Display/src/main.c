@@ -3,15 +3,28 @@
 #include "bsp/board_api.h"
 #include "board.h"
 #include "dashboard.h"
+#include "eddjson_client.h"
 #include "edd_state.h"
 #include "hardware/gpio.h"
 #include "lcd.h"
 #include "net_usb.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
-#include "websocket_client.h"
 
 static edd_state_t s_edd;
+static const net_usb_config_t s_network_config = {
+    .device_ip = {USB_NET_DEVICE_IP_A, USB_NET_DEVICE_IP_B,
+                  USB_NET_DEVICE_IP_C, USB_NET_DEVICE_IP_D},
+    .host_ip = {USB_NET_DEVICE_IP_A, USB_NET_DEVICE_IP_B,
+                USB_NET_DEVICE_IP_C, USB_NET_HOST_IP_D},
+    .dhcp_domain = "usb",
+    .interface_name = {'U', 'S'},
+};
+static const char *const s_initial_requests[] = {
+    EDDJSON_REQUEST_STATUS,
+    EDDJSON_REQUEST_INDICATOR,
+    EDDJSON_REQUEST_RECENT_JOURNAL,
+};
 
 typedef struct {
     bool raw_level;
@@ -61,7 +74,6 @@ int main(void) {
     sleep_ms(350);
     lcd_fill(COLOR_BLACK);
     edd_state_init(&s_edd);
-    websocket_client_init(on_websocket_message);
     dashboard_init(&s_edd);
     dashboard_set_connection(false, WS_OFFLINE);
     for (int stripe = 0; stripe < 14; ++stripe) dashboard_task();
@@ -74,7 +86,19 @@ int main(void) {
     tusb_init(BOARD_TUD_RHPORT, &usb_init);
     if (board_init_after_tusb) board_init_after_tusb();
 
-    bool network_ok = net_usb_init();
+    bool network_ok = net_usb_init(&s_network_config);
+    const eddjson_client_config_t eddjson_config = {
+        .host = net_usb_host_ip(),
+        .port = EDDISCOVERY_PORT,
+        .websocket_key = "UGljb0RlY2tFRERpc3BsYQ==",
+        .ping_payload = "ED",
+        .initial_requests = s_initial_requests,
+        .initial_request_count = sizeof(s_initial_requests) /
+                                 sizeof(s_initial_requests[0]),
+        .periodic_request = EDDJSON_REQUEST_RECENT_JOURNAL,
+        .periodic_interval_ms = 10000u,
+    };
+    eddjson_client_init(&eddjson_config, on_websocket_message);
     printf("PicoDeck ED Display v0.1.6\n");
     printf("USB network: %s\n", network_ok ? "ready" : "failed");
 
@@ -88,14 +112,14 @@ int main(void) {
         tud_task();
         net_usb_task();
         bool ready = network_ok && net_usb_ready();
-        websocket_client_task(ready);
+        eddjson_client_task(ready);
 
         uint64_t now = time_us_64() / 1000u;
         bool key_pressed = debounced_input_pressed(&user_key, PIN_USER_KEY, now);
         bool screen_touched = debounced_input_pressed(&touch, PIN_TOUCH_IRQ, now);
         if (key_pressed || screen_touched) dashboard_next_page();
 
-        dashboard_set_connection(ready, websocket_client_state());
+        dashboard_set_connection(ready, eddjson_client_state());
         dashboard_task();
         sleep_us(250);
     }

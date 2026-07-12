@@ -229,7 +229,7 @@ static void draw_diagnostics(void) {
     centered(62, "USB NETWORK", 3, s_usb_network ? COLOR_GREEN : COLOR_RED);
     label_value(30, 110, 185, "PICO", net_usb_device_ip(), COLOR_WHITE);
     label_value(265, 110, 185, "WINDOWS", net_usb_host_ip(), COLOR_WHITE);
-    label_value(30, 180, 420, "EDDISCOVERY", websocket_client_state_name(),
+    label_value(30, 180, 420, "EDDISCOVERY", eddjson_client_state_name(),
                 s_websocket == WS_OPEN ? COLOR_GREEN : COLOR_ORANGE);
     text_at(30, 238, "WEB SERVER PORT 6502", 2, COLOR_MID_GRAY);
     text_at(30, 265, "CONNECT NATIVE PICO USB TO PC", 2, COLOR_WHITE);

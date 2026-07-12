@@ -19,6 +19,7 @@ as native RP2040 firmware and communicate with the gaming PC over USB.
 
 ```text
 PicoDeck-EDDiscovery/
+|-- common/                  shared USB networking and EDDJSON client
 |-- PicoDeck-ED-Display/     telemetry and route display firmware
 |-- PicoDeck-ED-Keyboard/    24-button touch keyboard firmware
 |-- tools/                   shared, pinned Windows toolchain installer
@@ -27,8 +28,28 @@ PicoDeck-EDDiscovery/
 `-- dist/                    created by build-all.cmd
 ```
 
-Each subdirectory is an independent CMake firmware target and has its own
-README, source tree, build script, and UF2 output.
+Each application subdirectory is a separate CMake firmware target with its own
+README, application source, build script, and UF2 output. Both targets compile
+the transport components from `common/`.
+
+## Shared firmware components
+
+The `common/` directory contains the code that must behave consistently in both
+devices:
+
+- `net_usb.c`: TinyUSB NCM-to-lwIP interface and the local DHCP server setup
+- `websocket_client.c`: RFC 6455 handshake, framing, fragmentation, ping/pong,
+  timeouts, and reconnect backoff
+- `eddjson_client.c`: EDDJSON WebSocket subprotocol, initial requests, and
+  periodic recovery requests
+- `lwipopts.h`: the common no-OS lwIP configuration
+- `picodeck_common.cmake`: source, dependency, and per-target buffer integration
+
+Application code supplies the parts that are intentionally different: USB
+subnet, DHCP domain, lwIP interface name, WebSocket key and ping payload,
+EDDJSON request set, receive-buffer size, and message handler. USB descriptors
+remain target-specific because Display exposes NCM only, while Keyboard is a
+composite HID plus NCM device.
 
 ## What the two devices do
 

@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-set(TINYUSB_NETWORKING ${PICO_SDK_PATH}/lib/tinyusb/lib/networking)
+include(${CMAKE_CURRENT_LIST_DIR}/../common/picodeck_common.cmake)
 
 add_executable(picodeck
     src/main.c
@@ -29,18 +29,16 @@ add_executable(picodeck
     src/font5x7.c
     src/buttons.c
     src/edd_buttons.c
-    src/net_usb.c
     src/ui.c
     src/usb_descriptors.c
-    src/websocket_client.c
     assets/icons.c
-    ${TINYUSB_NETWORKING}/dhserver.c
 )
+
+picodeck_add_common(picodeck 8192 128)
 
 target_include_directories(picodeck PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
     ${CMAKE_CURRENT_LIST_DIR}/assets
-    ${TINYUSB_NETWORKING}
 )
 
 target_compile_options(picodeck PRIVATE
@@ -51,12 +49,7 @@ target_compile_options(picodeck PRIVATE
 
 target_link_libraries(picodeck PRIVATE
     pico_stdlib
-    pico_rand
-    pico_unique_id
-    pico_lwip_nosys
     hardware_spi
-    tinyusb_device
-    tinyusb_board
 )
 
 pico_enable_stdio_usb(picodeck 0)
