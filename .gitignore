@@ -1,6 +1,8 @@
-# Portable build environment downloaded by setup-toolchain.cmd
+# Portable build environments downloaded by the setup scripts
 .toolchain/
 .downloads/
+.toolchain-linux/
+.downloads-linux/
 
 # CMake/Ninja build trees and packaged firmware
 build/
