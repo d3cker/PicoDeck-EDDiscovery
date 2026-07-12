@@ -33,6 +33,10 @@ Each application subdirectory is a separate CMake firmware target with its own
 README, application source, build script, and UF2 output. Both targets compile
 the transport components from `common/`.
 
+**Both firmware builds work with either supported Waveshare LCD model. You can
+use the same LCD model for both devices; two different display models are not
+required.**
+
 ## Shared firmware components
 
 The `common/` directory contains the code that must behave consistently in both
