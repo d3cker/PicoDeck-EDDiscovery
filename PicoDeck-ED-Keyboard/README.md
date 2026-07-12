@@ -304,14 +304,21 @@ src/main.c               USB/network/touch event loop and HID reports
 src/ui.c                 6x4 tile renderer and startup diagnostics
 src/buttons.c            labels, icons, and HID usages
 src/edd_buttons.c        persistent telemetry-state mapping
-src/websocket_client.c   TCP/WebSocket client and reconnect logic
-src/net_usb.c            lwIP netif and DHCP server
 src/usb_descriptors.c    composite HID + Windows CDC-NCM descriptors
 src/touch.c              XPT2046 sampling and coordinate filtering
 src/lcd.c                ILI9488 driver
 assets/                  generated icon masks and upstream license material
 tools/                   setup and build entry points
+../common/net_usb.c      shared lwIP netif and DHCP server integration
+../common/websocket_client.c  shared RFC 6455 transport and reconnect logic
+../common/eddjson_client.c    shared EDDJSON requests and refresh scheduling
+../common/lwipopts.h          shared no-OS lwIP configuration
 ```
+
+Keyboard configures the common modules for `192.168.8.0/24`, an 8 KiB
+WebSocket receive buffer, and indicator startup and recovery requests. Its
+button-state mapper and composite HID plus NCM USB descriptors remain local to
+this target.
 
 ## Icons and licensing
 

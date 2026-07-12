@@ -7,12 +7,13 @@
 #include "tusb.h"
 
 #include "buttons.h"
+#include "board.h"
+#include "eddjson_client.h"
 #include "edd_buttons.h"
 #include "lcd.h"
 #include "net_usb.h"
 #include "touch.h"
 #include "ui.h"
-#include "websocket_client.h"
 
 #define HID_PRESS_TIME_MS 60u
 #define TOUCH_STABLE_POLLS 3u
@@ -22,6 +23,17 @@
 #define CONNECTED_HOLD_TIME_MS 800u
 
 static uint32_t s_dirty_buttons;
+static const net_usb_config_t s_network_config = {
+    .device_ip = {USB_NET_DEVICE_IP_A, USB_NET_DEVICE_IP_B,
+                  USB_NET_DEVICE_IP_C, USB_NET_DEVICE_IP_D},
+    .host_ip = {USB_NET_DEVICE_IP_A, USB_NET_DEVICE_IP_B,
+                USB_NET_DEVICE_IP_C, USB_NET_HOST_IP_D},
+    .dhcp_domain = "keyboard.usb",
+    .interface_name = {'K', 'B'},
+};
+static const char *const s_initial_requests[] = {
+    EDDJSON_REQUEST_INDICATOR,
+};
 
 static uint64_t now_ms(void) { return time_us_64() / 1000u; }
 
@@ -63,7 +75,6 @@ int main(void) {
     lcd_init();
     ui_init();
     edd_buttons_init();
-    websocket_client_init(on_websocket_message);
     ui_render_startup(false, false, "STARTING");
 
     net_usb_prepare_identity();
@@ -73,7 +84,19 @@ int main(void) {
     };
     tusb_init(BOARD_TUD_RHPORT, &usb_init);
     if (board_init_after_tusb) board_init_after_tusb();
-    bool network_ok = net_usb_init();
+    bool network_ok = net_usb_init(&s_network_config);
+    const eddjson_client_config_t eddjson_config = {
+        .host = net_usb_host_ip(),
+        .port = EDDISCOVERY_PORT,
+        .websocket_key = "UGljb0RlY2tLZXlib2FyZA==",
+        .ping_payload = "KB",
+        .initial_requests = s_initial_requests,
+        .initial_request_count = sizeof(s_initial_requests) /
+                                 sizeof(s_initial_requests[0]),
+        .periodic_request = EDDJSON_REQUEST_INDICATOR,
+        .periodic_interval_ms = 10000u,
+    };
+    eddjson_client_init(&eddjson_config, on_websocket_message);
 
     bool keyboard_visible = false;
     uint64_t startup_at = now_ms();
@@ -96,8 +119,8 @@ int main(void) {
         tud_task();
         net_usb_task();
         bool network_ready = network_ok && net_usb_ready();
-        websocket_client_task(network_ready);
-        websocket_state_t websocket = websocket_client_state();
+        eddjson_client_task(network_ready);
+        websocket_state_t websocket = eddjson_client_state();
         bool hid_ready = tud_mounted();
         uint64_t now = now_ms();
 
@@ -109,7 +132,7 @@ int main(void) {
                 last_network_ready = network_ready;
                 last_websocket = websocket;
                 ui_render_startup(hid_ready, network_ready,
-                                  websocket_client_state_name());
+                                  eddjson_client_state_name());
             }
             if (hid_ready && websocket == WS_OPEN) {
                 if (!connected_at) connected_at = now;
@@ -194,4 +217,3 @@ int main(void) {
         sleep_ms(1);
     }
 }
-

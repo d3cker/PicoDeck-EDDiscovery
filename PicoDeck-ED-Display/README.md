@@ -231,14 +231,21 @@ This firmware was developed and release-built on:
 src/main.c               initialization and main event loop
 src/dashboard.c          page rendering, scrolling text, and connection UI
 src/edd_state.c          EDDJSON parsing and route-state reconciliation
-src/websocket_client.c   TCP/WebSocket client and reconnect logic
-src/net_usb.c            lwIP netif and DHCP server
 src/usb_descriptors.c    Windows CDC-NCM USB descriptors
 src/lcd.c                ILI9488 driver and backlight control
 src/board.h              pinout, network addresses, and hardware constants
 third_party/jsmn/        vendored JSON parser
 tools/                   setup and build entry points
+../common/net_usb.c      shared lwIP netif and DHCP server integration
+../common/websocket_client.c  shared RFC 6455 transport and reconnect logic
+../common/eddjson_client.c    shared EDDJSON requests and refresh scheduling
+../common/lwipopts.h          shared no-OS lwIP configuration
 ```
+
+Display configures the common modules for `192.168.7.0/24`, a 32 KiB WebSocket
+receive buffer, status/indicator/journal startup requests, and a periodic recent
+journal request. Its telemetry parser and NCM-only USB descriptors remain local
+to this target.
 
 ## Third-party code and license
 
