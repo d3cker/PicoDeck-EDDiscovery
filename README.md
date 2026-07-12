@@ -22,7 +22,8 @@ PicoDeck-EDDiscovery/
 |-- common/                  shared USB networking and EDDJSON client
 |-- PicoDeck-ED-Display/     telemetry and route display firmware
 |-- PicoDeck-ED-Keyboard/    24-button touch keyboard firmware
-|-- tools/                   shared, pinned Windows toolchain installer
+|-- .github/workflows/       manual Linux release build
+|-- tools/                   shared Windows and Linux build tooling
 |-- setup-toolchain.cmd      install the build environment once
 |-- build-all.cmd            build both firmware images
 `-- dist/                    created by build-all.cmd
@@ -238,6 +239,83 @@ Each build wrapper records the shared-toolchain location used by its build
 tree. If the repository or `.toolchain` directory is moved, the wrapper detects
 the mismatch and rebuilds that target from a clean CMake cache automatically.
 Repeated builds with the same toolchain remain incremental.
+
+## GitHub release workflow
+
+The repository contains a manual GitHub Actions workflow named **Build and
+release UF2**. It builds both applications on a standard `ubuntu-24.04` GitHub
+hosted runner and publishes a GitHub Release only after the complete build and
+validation succeeds.
+
+The workflow is manual by design. Ordinary pushes and pull requests do not
+consume runner time and cannot accidentally publish firmware. A release is an
+explicit maintainer decision with two inputs:
+
+- `tag`: a new [SemVer](https://semver.org/) tag such as `v0.1.0` or
+  `v0.2.0-beta.1`
+- `prerelease`: marks the GitHub Release as a prerelease; a tag containing a
+  suffix such as `-beta.1` is treated as a prerelease automatically
+
+### Publish a release
+
+The workflow file must first exist on the repository's default branch. Then:
+
+1. Open the repository on GitHub and select **Actions**.
+2. Select **Build and release UF2** in the workflow list.
+3. Select **Run workflow**.
+4. Choose the branch whose exact commit should be released. Use the stable
+   default branch for a normal release. Choose `devel` only when deliberately
+   publishing a test/prerelease build.
+5. Enter a previously unused tag, for example `v0.1.0`.
+6. Enable **Mark this as a prerelease** when appropriate.
+7. Select the green **Run workflow** button and wait for the job to finish.
+
+The tag is created at the selected branch's checked-out commit only after both
+firmware builds succeed. The workflow rejects malformed or existing tags and
+will not replace an existing release. It uses the repository's temporary
+`GITHUB_TOKEN`; no personal access token or custom repository secret is
+required. Repository policy must allow GitHub Actions to write repository
+contents so it can create the tag and release.
+
+Each release contains:
+
+```text
+PicoDeck-ED-Display.uf2
+PicoDeck-ED-Keyboard.uf2
+SHA256SUMS.txt
+LICENSE
+THIRD_PARTY_NOTICES.md
+ICON_UPSTREAM_LICENSE.md
+```
+
+The release page includes installation and hardware requirements, USB subnet
+details, checksums, and automatically generated change notes. The same complete
+`dist/` directory is retained as a workflow artifact for 14 days, even before
+the release publishing step is inspected.
+
+Standard GitHub-hosted runners are free and unlimited for public repositories.
+Private repositories consume the monthly Actions allowance included with the
+account and may incur charges after that allowance, depending on the account's
+spending configuration. See [GitHub Actions
+billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+for the current terms.
+
+### Reproduce the Linux build locally
+
+On an x86-64 Linux host with `bash`, `curl`, `tar`, `unzip`, `sha256sum`, Git,
+CMake, Ninja, and Python 3 installed:
+
+```bash
+bash ./tools/setup-toolchain-linux.sh
+bash ./tools/build-all-linux.sh Release
+```
+
+The first command downloads the same pinned Pico SDK, TinyUSB, lwIP, and Arm
+GNU Toolchain revisions used by the workflow, verifies their SHA-256 hashes,
+and installs them under ignored `.toolchain-linux/` and `.downloads-linux/`
+directories. The second command builds both applications and creates `dist/`.
+Internet access is required for the first setup and for the Pico SDK's pinned
+picotool checkout.
 
 ## Development environment used
 

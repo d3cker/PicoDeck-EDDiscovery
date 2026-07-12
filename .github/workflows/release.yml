@@ -1,0 +1,149 @@
+name: Build and release UF2
+run-name: "Release ${{ inputs.tag }} from ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.1.0 or v0.2.0-beta.1"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark this as a prerelease"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "release-${{ inputs.tag }}"
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build RP2040 firmware and publish release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must use SemVer, for example v0.1.0 or v0.2.0-beta.1" >&2
+            exit 1
+          fi
+          if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists." >&2
+            exit 1
+          fi
+
+      - name: Show host build tools
+        run: |
+          cmake --version
+          ninja --version
+          python3 --version
+          gh --version
+
+      - name: Install pinned RP2040 toolchain
+        run: bash ./tools/setup-toolchain-linux.sh
+
+      - name: Build both UF2 files
+        run: bash ./tools/build-all-linux.sh Release
+
+      - name: Validate firmware metadata
+        run: |
+          PICOTOOL=".toolchain-linux/picotool/picotool/picotool"
+          test -x "$PICOTOOL"
+          "$PICOTOOL" info -a dist/PicoDeck-ED-Display.uf2
+          "$PICOTOOL" info -a dist/PicoDeck-ED-Keyboard.uf2
+          grep -q "PicoDeck-ED-Display.uf2" dist/SHA256SUMS.txt
+          grep -q "PicoDeck-ED-Keyboard.uf2" dist/SHA256SUMS.txt
+
+      - name: Upload firmware build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: "PicoDeck-EDDiscovery-${{ inputs.tag }}"
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          REQUESTED_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          checksums="$(cat dist/SHA256SUMS.txt)"
+          release_intro="$(cat <<EOF
+          PicoDeck-EDDiscovery provides two Raspberry Pi Pico firmware images for Elite Dangerous.
+
+          Built from commit `$GITHUB_SHA`.
+
+          ## Firmware included
+
+          - **PicoDeck-ED-Display.uf2**: telemetry and route pages for the Waveshare Pico-Eval-Board.
+          - **PicoDeck-ED-Keyboard.uf2**: 24-button HID touchscreen keyboard for the Waveshare Pico-ResTouch-LCD-3.5.
+
+          ## Requirements
+
+          - Raspberry Pi Pico RP2040 and the appropriate Waveshare display
+          - Elite Dangerous on Windows
+          - EDDiscovery with its Web Server enabled on TCP port 6502
+          - a USB data cable connected to the Pico's native USB connector
+
+          ## Installation
+
+          1. Disconnect the Pico.
+          2. Hold **BOOTSEL** while reconnecting USB.
+          3. Copy the appropriate UF2 file to the **RPI-RP2** drive.
+          4. Keep EDDiscovery running for telemetry and persistent keyboard-state highlighting.
+
+          Display uses USB subnet **192.168.7.0/24**. Keyboard uses **192.168.8.0/24**. Do not configure a gateway, DNS server, bridge, or Internet Connection Sharing on either adapter.
+
+          ## SHA-256
+
+          \`\`\`text
+          $checksums
+          \`\`\`
+
+          The release also contains the project license and all required third-party notices.
+          EOF
+          )"
+
+          release_args=(
+            "$TAG"
+            dist/PicoDeck-ED-Display.uf2
+            dist/PicoDeck-ED-Keyboard.uf2
+            dist/SHA256SUMS.txt
+            dist/LICENSE
+            dist/THIRD_PARTY_NOTICES.md
+            dist/ICON_UPSTREAM_LICENSE.md
+            --target "$GITHUB_SHA"
+            --title "PicoDeck-EDDiscovery $TAG"
+            --generate-notes
+            --notes "$release_intro"
+            --fail-on-no-commits
+          )
+          if [[ "$REQUESTED_PRERELEASE" == "true" || "$TAG" == *-* ]]; then
+            release_args+=(--prerelease --latest=false)
+          fi
+          gh release create "${release_args[@]}"
+          release_url="$(gh release view "$TAG" --json url --jq .url)"
+          echo "Release published: $release_url"
+          echo "### Release published" >> "$GITHUB_STEP_SUMMARY"
+          echo "$release_url" >> "$GITHUB_STEP_SUMMARY"
